@@ -1,0 +1,30 @@
+{
+  "name": "mcp-hub",
+  "version": "1.0.0",
+  "description": "HTTP/SSE gateway for MCP servers over stdio",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "NODE_ENV=development node index.js",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "lint": "node --check index.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "execa": "^9.5.2",
+    "fastify": "^4.29.0",
+    "figma-developer-mcp": "^0.8.0",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.6",
+    "vitest": "^2.1.6"
+  }
+}

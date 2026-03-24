@@ -1,0 +1,35 @@
+{
+  "hub": {
+    "host": "0.0.0.0",
+    "port": 3333,
+    "logLevel": "info",
+    "requestTimeoutMs": 30000,
+    "ssePingIntervalMs": 15000
+  },
+  "servers": {
+    "echo": {
+      "command": "node",
+      "args": ["./fixtures/stdio-mcp-echo.mjs"],
+      "env": {},
+      "autoStart": true,
+      "restartDelay": 2000,
+      "maxRestarts": 5,
+      "healthCheck": {
+        "enabled": false
+      }
+    },
+    "figma": {
+      "command": "node",
+      "args": ["./node_modules/figma-developer-mcp/dist/bin.js", "--stdio"],
+      "env": {
+        "FIGMA_API_KEY": "${FIGMA_API_KEY}"
+      },
+      "autoStart": false,
+      "restartDelay": 2000,
+      "maxRestarts": 5,
+      "healthCheck": {
+        "enabled": false
+      }
+    }
+  }
+}
