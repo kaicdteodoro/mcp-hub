@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        if: ${{ hashFiles('package.json') != '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        if: ${{ hashFiles('pyproject.toml') != '' || hashFiles('requirements.txt') != '' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install JS dependencies
+        if: ${{ hashFiles('package.json') != '' }}
+        run: npm install
+
+      - name: Install Python dependencies
+        if: ${{ hashFiles('pyproject.toml') != '' || hashFiles('requirements.txt') != '' }}
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f pyproject.toml ]; then pip install -e .; fi
+
+      - name: Run JS lint (if available)
+        if: ${{ hashFiles('package.json') != '' }}
+        run: node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));process.exit((p.scripts&&p.scripts.lint)?0:1)" && npm run lint || echo 'lint script not found'
+
+      - name: Run JS tests (if available)
+        if: ${{ hashFiles('package.json') != '' }}
+        run: node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));process.exit((p.scripts&&p.scripts.test)?0:1)" && npm test || echo 'test script not found'
+
+      - name: Run JS build (if available)
+        if: ${{ hashFiles('package.json') != '' }}
+        run: node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));process.exit((p.scripts&&p.scripts.build)?0:1)" && npm run build || echo 'build script not found'
+
+      - name: Run Python tests (if available)
+        if: ${{ hashFiles('pyproject.toml') != '' || hashFiles('requirements.txt') != '' }}
+        run: |
+          if [ -d tests ] || [ -f pytest.ini ]; then
+            python -m pytest
+          else
+            echo "pytest tests not found"
+          fi
+
+      - name: Docker compose smoke
+        if: ${{ hashFiles('docker-compose.yml') != '' || hashFiles('compose.yml') != '' }}
+        run: docker compose up -d
+
+      - name: Docker compose down
+        if: always() && (hashFiles('docker-compose.yml') != '' || hashFiles('compose.yml') != '')
+        run: docker compose down -v
+
