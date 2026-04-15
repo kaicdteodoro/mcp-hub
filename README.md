@@ -15,6 +15,43 @@ Gateway HTTP/SSE para servidores MCP que falam apenas stdio (NDJSON). Um único 
 
 Alterações em `mcp-hub.config.json` exigem **reinício do processo** (sem hot-reload no MVP).
 
+## `figma-write`
+
+O hub agora pode registrar um servidor MCP de escrita para Figma separado do `figma-developer-mcp` de leitura.
+
+O fixture `fixtures/stdio-mcp-figma-write.mjs` já entrega:
+
+- contrato de tools para `find_nodes`, `rename_node`, `set_text`, `dry_run` e `batch_apply`
+- validação estrutural das operações
+- `dry_run` funcional no nível de contrato
+- carregamento opcional de uma bridge real via `FIGMA_WRITE_BRIDGE_MODULE`
+
+Sem bridge configurada, o servidor responde em modo seguro com `bridge_missing`. Isso permite validar batches e integrar o fluxo antes de liberar escrita real.
+
+Exemplo de configuração de ambiente:
+
+```bash
+FIGMA_WRITE_BRIDGE_MODULE=./bridges/http-figma-write-bridge.mjs
+FIGMA_WRITE_BRIDGE_URL=http://127.0.0.1:3847
+FIGMA_WRITE_BRIDGE_TOKEN=secret
+```
+
+Bridge esperada:
+
+- `findNodes({ fileKey, query, page?, nodeType? })`
+- `dryRun({ fileKey, mode, operations })`
+- `batchApply({ fileKey, mode, operations })`
+
+O módulo pode exportar `default` ou named exports. Quando ausente, o fixture usa uma bridge stub.
+
+O repositório já inclui uma bridge HTTP pronta em [bridges/http-figma-write-bridge.mjs](bridges/http-figma-write-bridge.mjs). Ela espera um serviço local com estes endpoints:
+
+- `POST /find-nodes`
+- `POST /dry-run`
+- `POST /batch-apply`
+
+Todos recebem JSON e podem ser protegidos com `Authorization: Bearer <FIGMA_WRITE_BRIDGE_TOKEN>`.
+
 ## Execução com Docker
 
 ```bash

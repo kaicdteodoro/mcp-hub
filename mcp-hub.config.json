@@ -7,6 +7,17 @@
     "ssePingIntervalMs": 15000
   },
   "servers": {
+    "kaic-brain": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/vault"],
+      "env": {},
+      "autoStart": true,
+      "restartDelay": 2000,
+      "maxRestarts": 5,
+      "healthCheck": {
+        "enabled": false
+      }
+    },
     "echo": {
       "command": "node",
       "args": ["./fixtures/stdio-mcp-echo.mjs"],
@@ -23,6 +34,22 @@
       "args": ["./node_modules/figma-developer-mcp/dist/bin.js", "--stdio"],
       "env": {
         "FIGMA_API_KEY": "${FIGMA_API_KEY}"
+      },
+      "autoStart": false,
+      "restartDelay": 2000,
+      "maxRestarts": 5,
+      "healthCheck": {
+        "enabled": false
+      }
+    },
+    "figma-write": {
+      "command": "node",
+      "args": ["./fixtures/stdio-mcp-figma-write.mjs"],
+      "env": {
+        "FIGMA_WRITE_BRIDGE_MODULE": "${FIGMA_WRITE_BRIDGE_MODULE}",
+        "FIGMA_WRITE_BRIDGE_URL": "${FIGMA_WRITE_BRIDGE_URL}",
+        "FIGMA_WRITE_BRIDGE_TOKEN": "${FIGMA_WRITE_BRIDGE_TOKEN}",
+        "FIGMA_WRITE_BRIDGE_TIMEOUT_MS": "${FIGMA_WRITE_BRIDGE_TIMEOUT_MS}"
       },
       "autoStart": false,
       "restartDelay": 2000,

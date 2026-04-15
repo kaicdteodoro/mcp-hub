@@ -9,8 +9,14 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-3333}
       FIGMA_API_KEY: ${FIGMA_API_KEY}
+      FIGMA_WRITE_BRIDGE_MODULE: ${FIGMA_WRITE_BRIDGE_MODULE:-}
+      FIGMA_WRITE_BRIDGE_URL: ${FIGMA_WRITE_BRIDGE_URL:-}
+      FIGMA_WRITE_BRIDGE_TOKEN: ${FIGMA_WRITE_BRIDGE_TOKEN:-}
+      FIGMA_WRITE_BRIDGE_TIMEOUT_MS: ${FIGMA_WRITE_BRIDGE_TIMEOUT_MS:-10000}
+      MCP_HUB_AUTH_TOKEN: ${MCP_HUB_AUTH_TOKEN:-}
     volumes:
       - ./mcp-hub.config.json:/app/mcp-hub.config.json:ro
+      - /home/k41c/vault/kaic-brain:/vault:ro
     restart: unless-stopped
     healthcheck:
       test:
