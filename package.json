@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "NODE_ENV=development node index.js",
+    "figma-write:bridge": "node ./bridges/local-figma-write-service.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
@@ -17,6 +18,8 @@
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
+    "@hauptsache.net/clickup-mcp": "^1.6.2",
+    "@modelcontextprotocol/server-gdrive": "^2025.1.14",
     "execa": "^9.5.2",
     "fastify": "^4.29.0",
     "figma-developer-mcp": "^0.8.0",
