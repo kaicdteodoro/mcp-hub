@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>PB Figma Write Bridge</title>
+    <style>
+      body {
+        font: 12px/1.45 Inter, system-ui, sans-serif;
+        color: #111827;
+        margin: 0;
+        padding: 16px;
+      }
+      h1 {
+        font-size: 14px;
+        margin: 0 0 12px;
+      }
+      p,
+      label,
+      input,
+      button,
+      pre {
+        font: inherit;
+      }
+      label {
+        display: block;
+        margin: 12px 0 6px;
+        font-weight: 600;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+      }
+      button {
+        margin-top: 16px;
+        width: 100%;
+        border: 0;
+        border-radius: 999px;
+        background: #111827;
+        color: white;
+        padding: 10px 14px;
+        cursor: pointer;
+      }
+      pre {
+        margin-top: 16px;
+        padding: 10px;
+        border-radius: 8px;
+        background: #f3f4f6;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .muted {
+        color: #6b7280;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="config-root" class="hidden">
+      <h1>Bridge Settings</h1>
+      <p class="muted">Configure the local service the plugin should connect to.</p>
+      <label for="bridge-url">Bridge URL</label>
+      <input id="bridge-url" placeholder="http://127.0.0.1:3847" />
+      <label for="bridge-token">Bridge token</label>
+      <input id="bridge-token" placeholder="Optional bearer token" />
+      <label for="file-key-override">File key override</label>
+      <input id="file-key-override" placeholder="Use only if figma.fileKey is unavailable" />
+      <pre id="config-context"></pre>
+      <button id="save-settings">Save settings</button>
+    </div>
+
+    <script>
+      const state = {
+        mode: 'agent',
+        settings: {
+          bridgeUrl: 'http://127.0.0.1:3847',
+          bridgeToken: '',
+          fileKeyOverride: ''
+        },
+        context: null,
+        sessionId: '',
+        polling: false,
+        lastHeartbeatAt: 0,
+        lastStatus: 'idle'
+      };
+
+      const configRoot = document.getElementById('config-root');
+      const bridgeUrlInput = document.getElementById('bridge-url');
+      const bridgeTokenInput = document.getElementById('bridge-token');
+      const fileKeyOverrideInput = document.getElementById('file-key-override');
+      const configContext = document.getElementById('config-context');
+      const saveSettingsButton = document.getElementById('save-settings');
+
+      function authHeaders() {
+        return state.settings.bridgeToken
+          ? { authorization: `Bearer ${state.settings.bridgeToken}` }
+          : {};
+      }
+
+      async function bridgeRequest(path, init = {}) {
+        const response = await fetch(`${state.settings.bridgeUrl.replace(/\/+$/, '')}${path}`, {
+          method: init.method || 'GET',
+          headers: {
+            'content-type': 'application/json',
+            ...authHeaders(),
+            ...(init.headers || {})
+          },
+          body: init.body ? JSON.stringify(init.body) : undefined
+        });
+
+        const text = await response.text();
+        const body = text ? JSON.parse(text) : {};
+        if (!response.ok) {
+          throw new Error(body.error || body.message || `Bridge request failed with status ${response.status}`);
+        }
+        return body;
+      }
+
+      function renderConfig() {
+        configRoot.classList.remove('hidden');
+        bridgeUrlInput.value = state.settings.bridgeUrl || '';
+        bridgeTokenInput.value = state.settings.bridgeToken || '';
+        fileKeyOverrideInput.value = state.settings.fileKeyOverride || '';
+        configContext.textContent = JSON.stringify(state.context || {}, null, 2);
+      }
+
+      function requestContext() {
+        parent.postMessage({ pluginMessage: { type: 'request-context' } }, '*');
+      }
+
+      async function registerSession() {
+        const response = await bridgeRequest('/plugin/register', {
+          method: 'POST',
+          body: state.context
+        });
+        state.sessionId = response.session.id;
+        state.lastStatus = 'registered';
+      }
+
+      async function heartbeat() {
+        if (!state.sessionId) return;
+        await bridgeRequest('/plugin/heartbeat', {
+          method: 'POST',
+          body: {
+            sessionId: state.sessionId,
+            ...state.context
+          }
+        });
+        state.lastHeartbeatAt = Date.now();
+      }
+
+      async function submitCommandResult(commandId, responsePayload) {
+        await bridgeRequest('/plugin/result', {
+          method: 'POST',
+          body: {
+            sessionId: state.sessionId,
+            commandId,
+            ...responsePayload
+          }
+        });
+      }
+
+      async function pollOnce() {
+        if (!state.sessionId) {
+          await registerSession();
+        }
+
+        const response = await bridgeRequest(
+          `/plugin/next?session_id=${encodeURIComponent(state.sessionId)}&wait_ms=25000`
+        );
+
+        if (response.status === 'ok' && response.command) {
+          parent.postMessage(
+            {
+              pluginMessage: {
+                type: 'execute-command',
+                command: response.command
+              }
+            },
+            '*'
+          );
+        }
+      }
+
+      async function startAgentLoop() {
+        if (state.polling) return;
+        state.polling = true;
+
+        while (true) {
+          try {
+            if (!state.context) {
+              requestContext();
+              await new Promise((resolve) => setTimeout(resolve, 300));
+            }
+
+            if (!state.context) {
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+              continue;
+            }
+
+            if (Date.now() - state.lastHeartbeatAt > 10000 && state.sessionId) {
+              await heartbeat();
+            }
+
+            await pollOnce();
+          } catch (error) {
+            state.lastStatus = error.message;
+            state.sessionId = '';
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+          }
+        }
+      }
+
+      saveSettingsButton.addEventListener('click', () => {
+        parent.postMessage(
+          {
+            pluginMessage: {
+              type: 'save-settings',
+              settings: {
+                bridgeUrl: bridgeUrlInput.value,
+                bridgeToken: bridgeTokenInput.value,
+                fileKeyOverride: fileKeyOverrideInput.value
+              }
+            }
+          },
+          '*'
+        );
+      });
+
+      window.onmessage = async (event) => {
+        const message = event.data.pluginMessage;
+        if (!message) return;
+
+        if (message.type === 'init') {
+          state.mode = message.mode;
+          state.settings = message.settings || state.settings;
+          state.context = message.context || state.context;
+          if (state.mode === 'configure') {
+            renderConfig();
+          } else {
+            startAgentLoop();
+          }
+          return;
+        }
+
+        if (message.type === 'context') {
+          state.context = message.context;
+          if (state.mode === 'configure') {
+            configContext.textContent = JSON.stringify(state.context || {}, null, 2);
+          }
+          return;
+        }
+
+        if (message.type === 'settings-saved') {
+          state.settings = message.settings || state.settings;
+          return;
+        }
+
+        if (message.type === 'command-result') {
+          try {
+            await submitCommandResult(message.commandId, message.response || {});
+          } catch (error) {
+            state.lastStatus = error.message;
+          }
+        }
+      };
+    </script>
+  </body>
+</html>
+

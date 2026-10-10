@@ -44,6 +44,8 @@ export class MCPServerWrapper extends EventEmitter {
   /** @type {string[]} */
   #stderrLines = [];
   #stderrMaxLines = DEFAULT_STDERR_MAX_LINES;
+  /** @type {boolean} */
+  #initialized = false;
 
   /**
    * @param {string} name
@@ -158,6 +160,71 @@ export class MCPServerWrapper extends EventEmitter {
     });
 
     this.#logger.info({ spawn: { command: this.#def.command, args: this.#def.args ?? [] } });
+
+    // MCP handshake — wait for the ready signal on stderr, then initialize
+    await this.#waitForReadyAndInitialize();
+  }
+
+  async #waitForReadyAndInitialize() {
+    // Some servers (e.g. mcp-server-filesystem via npx) take a while to download
+    // and start. We detect readiness via a stderr marker. If no marker arrives
+    // within 60s, we proceed anyway (servers that don't emit a marker are
+    // immediately ready, like pure-node servers).
+    const READY_MARKERS = [
+      'running on stdio',
+      'server started',
+      'listening',
+      'ready',
+    ];
+    const READY_TIMEOUT_MS = 60_000;
+
+    await new Promise((resolve) => {
+      // Already got lines buffered in stderrLines?
+      if (this.#stderrLines.some(l => READY_MARKERS.some(m => l.toLowerCase().includes(m)))) {
+        return resolve(undefined);
+      }
+
+      const timer = setTimeout(resolve, READY_TIMEOUT_MS);
+
+      const onStderr = (chunk) => {
+        const text = String(chunk).toLowerCase();
+        if (READY_MARKERS.some(m => text.includes(m))) {
+          clearTimeout(timer);
+          subprocess.stderr?.off('data', onStderr);
+          resolve(undefined);
+        }
+      };
+
+      // Listen on the raw subprocess stderr
+      const subprocess = this.#child;
+      subprocess?.stderr?.on('data', onStderr);
+    });
+
+    await this.#doInitialize();
+  }
+
+  async #doInitialize() {
+    try {
+      await this.send({
+        jsonrpc: '2.0',
+        method: 'initialize',
+        params: {
+          protocolVersion: '2024-11-05',
+          capabilities: {},
+          clientInfo: { name: 'mcp-hub', version: '1.0.0' },
+        },
+      });
+      // Send the initialized notification (no response expected — fire and forget)
+      await this.#writeLine(JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'notifications/initialized',
+        params: {},
+      }) + '\n');
+      this.#initialized = true;
+      this.#logger.info('mcp_initialized');
+    } catch (err) {
+      this.#logger.warn({ err: String(err) }, 'mcp_initialize_failed');
+    }
   }
 
   /**

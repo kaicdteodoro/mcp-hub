@@ -51,6 +51,10 @@ export const toolDefinitions = [
       type: 'object',
       properties: {
         fileKey: { type: 'string' },
+        mode: {
+          type: 'string',
+          enum: ['safe_write', 'full_write']
+        },
         operations: {
           type: 'array',
           items: { type: 'object' }
@@ -320,4 +324,3 @@ export function buildBatchApplyMissingBridgeResult(planResult, bridgeInfo = {}) 
     nextStep: 'Configure FIGMA_WRITE_BRIDGE_MODULE with a write-capable bridge before calling batch_apply.'
   };
 }
-

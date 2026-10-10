@@ -1,0 +1,24 @@
+{
+  "name": "PB Figma Write Bridge",
+  "api": "1.0.0",
+  "editorType": ["figma"],
+  "main": "code.js",
+  "ui": "ui.html",
+  "documentAccess": "dynamic-page",
+  "enablePrivatePluginApi": true,
+  "networkAccess": {
+    "allowedDomains": ["http://127.0.0.1:3847", "http://localhost:3847"],
+    "devAllowedDomains": ["http://127.0.0.1:3847", "http://localhost:3847"],
+    "reasoning": "Connect to the local Pensando Bem Figma write bridge running on the same machine as the browser so the private plugin can validate and apply safe write operations."
+  },
+  "menu": [
+    {
+      "name": "Start Bridge Agent",
+      "command": "start-agent"
+    },
+    {
+      "name": "Configure Bridge",
+      "command": "configure-bridge"
+    }
+  ]
+}

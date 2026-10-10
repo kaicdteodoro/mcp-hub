@@ -43,13 +43,41 @@ O servidor `figma-write` depende de uma bridge externa para realmente escrever n
 
 Fluxo operacional:
 
-1. Suba o bridge/plugin local que fala com o Figma.
-2. Exponha os endpoints `POST /find-nodes`, `POST /dry-run` e `POST /batch-apply`.
-3. Recrie o `hub` para propagar as envs novas ao subprocesso `figma-write`.
-4. Inicie `figma-write` via `/admin/servers/figma-write/start`.
-5. Valide primeiro com `dry_run` antes de liberar `batch_apply`.
+1. Inicie o serviço local:
+   - `npm run figma-write:bridge`
+2. Importe o plugin local em `bridges/figma-write-plugin/manifest.json` no Figma Desktop.
+3. Rode `Start Bridge Agent` no arquivo que será editado.
+4. Recrie o `hub` para propagar as envs novas ao subprocesso `figma-write`.
+5. Inicie `figma-write` via `/admin/servers/figma-write/start`.
+6. Valide primeiro com `dry_run` antes de liberar `batch_apply`.
 
 Sem bridge configurada, o MCP continua disponível, mas responde `bridge_missing` para manter o fluxo seguro.
+
+Definição prática de pronto para uso real:
+
+- `tools/list` expõe `find_nodes`, `rename_node`, `set_text`, `dry_run`, `batch_apply`
+- `dry_run` responde com bridge configurada e sem `bridge_missing`
+- `batch_apply` retorna `applied` em um arquivo real de teste
+- releitura subsequente via MCP de leitura confirma a mutação esperada no Figma
+
+## Endpoints do serviço local
+
+- `GET /health`
+- `POST /plugin/register`
+- `POST /plugin/heartbeat`
+- `GET /plugin/next?session_id=...&wait_ms=25000`
+- `POST /plugin/result`
+- `POST /find-nodes`
+- `POST /dry-run`
+- `POST /batch-apply`
+
+## Variáveis úteis
+
+- `FIGMA_WRITE_BRIDGE_HOST` default `127.0.0.1`
+- `FIGMA_WRITE_BRIDGE_PORT` default `3847`
+- `FIGMA_WRITE_BRIDGE_TOKEN` opcional
+- `FIGMA_WRITE_BRIDGE_SESSION_TTL_MS` default `120000`
+- `FIGMA_WRITE_BRIDGE_COMMAND_TIMEOUT_MS` default `30000`
 
 ## Logs
 

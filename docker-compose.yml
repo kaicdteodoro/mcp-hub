@@ -9,7 +9,6 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-3333}
       CLICKUP_API_KEY: ${CLICKUP_API_KEY:-}
-      CLICKUP_TEAM_ID: ${CLICKUP_TEAM_ID:-}
       FIGMA_API_KEY: ${FIGMA_API_KEY}
       FIGMA_WRITE_BRIDGE_MODULE: ${FIGMA_WRITE_BRIDGE_MODULE:-}
       FIGMA_WRITE_BRIDGE_URL: ${FIGMA_WRITE_BRIDGE_URL:-}
@@ -20,6 +19,9 @@ services:
       - ./mcp-hub.config.json:/app/mcp-hub.config.json:ro
       - /home/k41c/vault/kaic-brain:/vault:ro
       - ./credentials:/app/credentials:ro
+      - /home/k41c/Downloads:/home/k41c/Downloads:ro
+      - /home/k41c/.claude/image-cache:/home/k41c/.claude/image-cache:ro
+      - /home/k41c/Projects/pensando-bem:/home/k41c/Projects/pensando-bem:ro
     restart: unless-stopped
     healthcheck:
       test:

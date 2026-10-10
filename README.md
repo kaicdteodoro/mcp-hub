@@ -42,6 +42,18 @@ Bridge esperada:
 - `dryRun({ fileKey, mode, operations })`
 - `batchApply({ fileKey, mode, operations })`
 
+Contrato HTTP mínimo esperado da bridge:
+
+- `POST /find-nodes`:
+  - entrada: `{ fileKey, query, page?, nodeType? }`
+  - saída: `{ status, matches: [{ nodeId, name?, page?, nodeType? }, ...] }`
+- `POST /dry-run`:
+  - entrada: `{ fileKey, mode, operations }`
+  - saída: `{ status, validOperations?, invalidOperations?, errors?, warnings? }`
+- `POST /batch-apply`:
+  - entrada: `{ fileKey, mode, operations }`
+  - saída: `{ status, appliedOperations?, errors?, warnings? }`
+
 O módulo pode exportar `default` ou named exports. Quando ausente, o fixture usa uma bridge stub.
 
 O repositório já inclui uma bridge HTTP pronta em [bridges/http-figma-write-bridge.mjs](bridges/http-figma-write-bridge.mjs). Ela espera um serviço local com estes endpoints:
@@ -51,6 +63,32 @@ O repositório já inclui uma bridge HTTP pronta em [bridges/http-figma-write-br
 - `POST /batch-apply`
 
 Todos recebem JSON e podem ser protegidos com `Authorization: Bearer <FIGMA_WRITE_BRIDGE_TOKEN>`.
+
+Status prático do `figma-write` neste repositório:
+
+- MCP stdio pronto
+- contrato de operações pronto
+- bridge HTTP client pronta
+- bridge service local pronta em `bridges/local-figma-write-service.mjs`
+- plugin Figma de desenvolvimento pronto em `bridges/figma-write-plugin/`
+- testes de contrato e fim a fim do fixture prontos
+- o que ainda falta fora do repo: apenas carregar o plugin no Figma Desktop e deixá-lo conectado ao bridge local
+
+## Bridge local real
+
+Este repositório agora inclui a implementação local completa do loop de escrita:
+
+1. `npm run figma-write:bridge`
+2. importar o plugin em `bridges/figma-write-plugin/manifest.json` no Figma Desktop
+3. rodar `Start Bridge Agent`
+4. manter o `mcp-hub` apontando para `http://127.0.0.1:3847`
+
+Fluxo:
+
+- `mcp-hub` chama a bridge HTTP local
+- a bridge enfileira o comando para a sessão do plugin conectada ao `fileKey`
+- o plugin executa a operação no arquivo aberto
+- o resultado volta pela bridge e é devolvido ao MCP
 
 ## Execução com Docker
 
